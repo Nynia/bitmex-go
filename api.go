@@ -50,6 +50,12 @@ type BitMEX struct {
 	orderBookLocals map[string]*OrderBookLocal // key: symbol
 	orderLocals     map[string]*swagger.Order  // key: OrderID
 	orderBookLoaded map[string]bool            // key: symbol
+
+	//new
+	tmpOrders_0 chan string
+	tmpOrders_1 chan string
+	tmpOrders_2 chan string
+	tmpOrders_3 chan string
 }
 
 // New allows the use of the public or private and websocket api
@@ -73,6 +79,12 @@ func New(host string, key string, secret string) *BitMEX {
 	}
 	b.cfg.HTTPClient = b.httpClient
 	b.client = swagger.NewAPIClient(b.cfg)
+
+	//new
+	b.tmpOrders_0 = make(chan string, 30)
+	b.tmpOrders_1 = make(chan string, 30)
+	b.tmpOrders_2 = make(chan string, 30)
+	b.tmpOrders_3 = make(chan string, 30)
 	return b
 }
 
