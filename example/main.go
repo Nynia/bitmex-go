@@ -1,57 +1,72 @@
 package main
 
 import (
+	"fmt"
 	"github.com/sumorf/bitmex-api"
 	"github.com/sumorf/bitmex-api/swagger"
 	"log"
+	"strings"
+)
+
+const (
+	INIT_POSITION int     = 11
+	PRICE_DIST    float64 = 10
+	PROFIT_DIST   float64 = 5
+	UNIT_AMOUNT   int     = 200
+	SYMBOL1       string  = "XBTUSD"
+	SYMBOL2       string  = "XBTZ19"
 )
 
 func main() {
 	b := bitmex.New(bitmex.HostTestnet, "DEt3D-w0hMPCGwqx3MW0jlU8", "glojC1IZXq94N3MlB8CLM3qeW7cjSUxzqbYRdkz9jJMV0p8q")
 	subscribeInfos := []bitmex.SubscribeInfo{
-		{Op: bitmex.BitmexWSOrderBookL2, Param: "XBTUSD"},
-		{Op: bitmex.BitmexWSOrder, Param: "XBTUSD"},
-		{Op: bitmex.BitmexWSPosition, Param: "XBTUSD"},
-		{Op: bitmex.BitmexWSMargin, Param: "XBTUSD"},
+		{Op: bitmex.BitmexWSOrder, Param: SYMBOL1},
+		{Op: bitmex.BitmexWSOrder, Param: SYMBOL2},
 	}
+
 	err := b.Subscribe(subscribeInfos)
 	if err != nil {
 		log.Fatal(err)
 	}
-	b.On(bitmex.BitmexWSOrderBookL2, func(m bitmex.OrderBookDataL2, symbol string) {
-		//ob := m.OrderBook()
-		//fmt.Printf("\rOrderbook Asks: %#v Bids: %#v                            ", ob.Asks[0], ob.Bids[0])
-	}).On(bitmex.BitmexWSOrder, func(m []*swagger.Order, action string) {
+	buy_amount := 0
+	sell_amount := 0
+	total := 0
+	b.On(bitmex.BitmexWSOrder, func(m []*swagger.Order, action string) {
 		ord := m[0]
 		if ord.OrdStatus == "Filled" {
-			if ord.Side == bitmex.SIDE_BUY {
-				go b.SendOrder(ord.Symbol, "Sell", ord.OrderQty, ord.Price+10)
+			log.Printf("side: %s, symbol: %s, cum_qty: %.2f, order_px: %.2f, orderID: %s",
+				ord.Side, ord.Symbol, ord.OrderQty, ord.Price, ord.OrderID)
+			if int(ord.OrderQty) != UNIT_AMOUNT {
+				log.Printf("开仓：%s", ord.Symbol)
+				new_orders := make([]string, INIT_POSITION)
+				for i := 0; i < INIT_POSITION; i++ {
+					price := ord.Price + float64(i)*PRICE_DIST + PROFIT_DIST
+					new_orders[i] = fmt.Sprintf(`{"symbol":"%s","side":"Sell","orderQty":%d,"ordType":"Limit","price":%f}`, ord.Symbol, UNIT_AMOUNT, price)
+				}
+				ordstr := "[" + strings.Join(new_orders, ",") + "]"
+				_, _ = b.NewBuckOrder(ordstr)
+				for i := 0; i < INIT_POSITION; i++ {
+					price := ord.Price - float64(i+1)*PRICE_DIST
+					new_orders[i] = fmt.Sprintf(`{"symbol":"%s","side":"Buy","orderQty":%d,"ordType":"Limit","price":%f}`, ord.Symbol, UNIT_AMOUNT, price)
+				}
+				ordstr = "[" + strings.Join(new_orders, ",") + "]"
+				_, _ = b.NewBuckOrder(ordstr)
 			} else {
-				go b.SendOrder(ord.Symbol, "Buy", ord.OrderQty, ord.Price-10)
+				if ord.Side == bitmex.SIDE_BUY {
+					buy_amount++
+					go b.SendOrder(ord.Symbol, "Sell", ord.OrderQty, ord.Price+PROFIT_DIST, total+1)
+				} else {
+					sell_amount++
+					go b.SendOrder(ord.Symbol, "Buy", ord.OrderQty, ord.Price-PROFIT_DIST, total+1)
+				}
+				total += 1
+				log.Printf("TOTAL: %d\tBUY: %d\tSELL: %d", total, buy_amount, sell_amount)
 			}
 		}
-		//fmt.Printf("Order action=%v orders=%#v\n", action, m[0].OrderID)
-	}).On(bitmex.BitmexWSPosition, func(m []*swagger.Position, action string) {
-		//fmt.Printf("Position action=%v positions=%#v\n", action, m)
-	}).On(bitmex.BitmexWSMargin, func(m []*swagger.Margin, action string) {
-		//fmt.Printf("Wallet action=%v margins=%#v\n", action, m)
 	})
 	b.StartWS()
-	//fmt.Printf(b.GetTmpOrder("XBTUSD", "Buy"))
-	//b.SendOrder("XBTUSD", "Buy", 1000, 12500)
-	// Get orderbook by rest api
-	//b.GetOrderBook(10, "XBTUSD")
-	//// Place a limit buy order
-	//b.PlaceOrder(bitmex.SIDE_BUY, bitmex.ORD_TYPE_LIMIT, 0, 6000.0, 1000, "", "", "XBTUSD")
-	//b.GetOrders("XBTUSD")
-	//b.GetOrder("{OrderID}", "XBTUSD")
-	//b.AmendOrder("{OrderID}", 6000.5)
-	//b.CancelOrder("{OrderID}")
-	//b.CancelAllOrders("XBTUSD")
-	//b.GetPosition("XBTUSD")
-	//b.GetMargin()
-
-	b.SyncOrders()
+	_, _ = b.SyncOrders()
+	go b.MonitorTmpOrder()
 
 	forever := make(chan bool)
 	<-forever

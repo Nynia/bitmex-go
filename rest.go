@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/sumorf/bitmex-api/swagger"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -33,6 +34,13 @@ const (
 	OS_FILLED           = "Filled"
 	OS_CANCELED         = "Canceled"
 	OS_REJECTED         = "Rejected"
+
+	INIT_POSITION int     = 11
+	PRICE_DIST    float64 = 10
+	PROFIT_DIST   float64 = 5
+	UNIT_AMOUNT   int     = 200
+	SYMBOL1       string  = "XBTUSD"
+	SYMBOL2       string  = "XBTZ19"
 )
 
 var (
@@ -260,12 +268,15 @@ func (b *BitMEX) GetOrdersRaw(symbol string, filter string) (orders []swagger.Or
 	var response *http.Response
 
 	params := map[string]interface{}{}
+	//params["count"] = 500
 	if symbol != "" {
 		params["symbol"] = symbol
 	}
 	if filter != "" {
 		params["filter"] = filter // `{"open":true}`
 	}
+	params["count"] = float32(500)
+	params["reverse"] = true
 
 	orders, response, err = b.client.OrderApi.OrderGetOrders(b.ctx, params)
 	if err != nil {
@@ -645,125 +656,102 @@ func (b *BitMEX) onResponse(response *http.Response) {
 		b.rateLimit.Reset, _ = strconv.ParseInt(xReset, 10, 64)
 	}
 }
+func (b *BitMEX) NewBuckOrder(ordstr string) (orders []swagger.Order, err error) {
+	log.Print(ordstr)
+	var response *http.Response
+	params := map[string]interface{}{}
+	params["orders"] = ordstr
+	orders, response, err = b.client.OrderApi.OrderNewBulk(b.ctx, params)
+	if err != nil {
+		// >= 300 代表有错误
+		// 400 Bad Request
+		// 503
+		log.Printf("response.StatusCode: %v", response.StatusCode)
+		//log.Printf("response.StatusCode: %v", response.Body)
+		//log.Print(err)
+		return
+	}
+	b.onResponse(response)
+	return
+}
+func (b *BitMEX) MonitorTmpOrder() {
+	var side_info = [4]string{"Buy", "Buy", "Sell", "Sell"}
+	var symbol_info = [4]string{SYMBOL1, SYMBOL2, SYMBOL1, SYMBOL2}
+	var qty_info = [4]float32{10, 10, 40, 40}
+	var price_info = [4]float64{3000, 3000, 14000, 14000}
+	var chan_orders = [4]chan string{b.tmpOrders_0, b.tmpOrders_1, b.tmpOrders_2, b.tmpOrders_3}
+	for {
+		for i := 0; i < 4; i++ {
+			chan_order := chan_orders[i]
+			count := len(chan_order)
+			//fmt.Printf("count%d: %d\n", i, count)
+			new_orders := make([]string, 30-count)
+			if count < 15 {
+				for j := 0; j < 30-count; j++ {
+					new_orders[j] = fmt.Sprintf(`{"symbol":"%s","side":"%s","orderQty":%f,"ordType":"Limit","price":%f,"execInst":"ParticipateDoNotInitiate"}`, symbol_info[i], side_info[i], qty_info[i], price_info[i])
+				}
+				str_order := "[" + strings.Join(new_orders, ",") + "]"
+				log.Printf("new[%d]: %s", i, str_order)
+				params := map[string]interface{}{}
+				params["orders"] = str_order
+				var orders []swagger.Order
+				orders, _, _ = b.client.OrderApi.OrderNewBulk(b.ctx, params)
 
-func (b *BitMEX) GetTmpOrder(symbol string, side string) (orderID string, err error) {
+				for j := 0; j < len(orders); j++ {
+					chan_order <- orders[i].OrderID
+				}
+			}
+		}
+		time.Sleep(3 * time.Second)
+	}
+}
+func (b *BitMEX) GetTmpOrder(symbol string, side string) (orderID string) {
 	//var response *http.Response
-	if symbol == "XBTUSD" && side == "Buy" {
-		count := len(b.tmpOrders_0)
-		fmt.Printf("count0: %d\n", count)
-		new_orders := make([]string, 30-count)
-		if count < 15 {
-			for i := 0; i < 30-count; i++ {
-				new_orders[i] = fmt.Sprintf(`{"symbol":"%s","side":"%s","orderQty":10,"ordType":"Limit","price":3000,"execInst":"ParticipateDoNotInitiate"}`, symbol, side)
-			}
-		}
-		str_order := "[" + strings.Join(new_orders, ",") + "]"
-		//fmt.Printf(str_order)
-		params := map[string]interface{}{}
-		params["orders"] = str_order
-		var orders []swagger.Order
-		orders, _, err = b.client.OrderApi.OrderNewBulk(b.ctx, params)
-
-		for i := 0; i < len(orders); i++ {
-			b.tmpOrders_0 <- orders[i].OrderID
-		}
+	if symbol == SYMBOL1 && side == "Buy" {
 		orderID = <-b.tmpOrders_0
-		//fmt.Print("1\n")
-
-	} else if symbol == "XBTZ19" && side == "Buy" {
-		count := len(b.tmpOrders_1)
-		fmt.Printf("count1: %d\n", count)
-		new_orders := make([]string, 30-count)
-		if count < 15 {
-			for i := 0; i < 30-count; i++ {
-				new_orders[i] = fmt.Sprintf(`{"symbol":"%s","side":"%s","orderQty":10,"ordType":"Limit","price":3000,"execInst":"ParticipateDoNotInitiate"}`, symbol, side)
-			}
-		}
-		str_order := "[" + strings.Join(new_orders, ",") + "]"
-		fmt.Printf(str_order)
-		params := map[string]interface{}{}
-		params["orders"] = str_order
-		var orders []swagger.Order
-		orders, _, err = b.client.OrderApi.OrderNewBulk(b.ctx, params)
-
-		for i := 0; i < len(orders); i++ {
-			b.tmpOrders_1 <- orders[i].OrderID
-		}
+	} else if symbol == SYMBOL2 && side == "Buy" {
 		orderID = <-b.tmpOrders_1
-	} else if symbol == "XBTUSD" && side == "Sell" {
-		count := len(b.tmpOrders_2)
-		fmt.Printf("count2: %d\n", count)
-		new_orders := make([]string, 30-count)
-		if count < 15 {
-			for i := 0; i < 30-count; i++ {
-				new_orders[i] = fmt.Sprintf(`{"symbol":"%s","side":"%s","orderQty":40,"ordType":"Limit","price":14000,"execInst":"ParticipateDoNotInitiate"}`, symbol, side)
-			}
-		}
-		str_order := "[" + strings.Join(new_orders, ",") + "]"
-		fmt.Printf(str_order)
-		params := map[string]interface{}{}
-		params["orders"] = str_order
-		var orders []swagger.Order
-		orders, _, err = b.client.OrderApi.OrderNewBulk(b.ctx, params)
-
-		for i := 0; i < len(orders); i++ {
-			b.tmpOrders_2 <- orders[i].OrderID
-		}
+	} else if symbol == SYMBOL1 && side == "Sell" {
 		orderID = <-b.tmpOrders_2
 	} else {
-		count := len(b.tmpOrders_3)
-		fmt.Printf("count3: %d\n", count)
-		new_orders := make([]string, 30-count)
-		if count < 15 {
-			for i := 0; i < 30-count; i++ {
-				new_orders[i] = fmt.Sprintf(`{"symbol":"%s","side":"%s","orderQty":40,"ordType":"Limit","price":14000,"execInst":"ParticipateDoNotInitiate"}`, symbol, side)
-			}
-		}
-		str_order := "[" + strings.Join(new_orders, ",") + "]"
-		fmt.Printf(str_order)
-		params := map[string]interface{}{}
-		params["orders"] = str_order
-		var orders []swagger.Order
-		orders, _, err = b.client.OrderApi.OrderNewBulk(b.ctx, params)
-
-		for i := 0; i < len(orders); i++ {
-			b.tmpOrders_3 <- orders[i].OrderID
-		}
 		orderID = <-b.tmpOrders_3
 	}
 	//b.onResponse(response)
 	return
 }
 
-func (b *BitMEX) SendOrder(symbol string, side string, orderQty float32, price float64) (order swagger.Order, err error) {
+func (b *BitMEX) SendOrder(symbol string, side string, orderQty float32, price float64, seq int) (order swagger.Order, err error) {
 	for i := 0; i < 100; i++ {
-		orderID, _ := b.GetTmpOrder(symbol, side)
+		log.Printf("[%d]%s  第%d次发起委托，symboll: %s, qty: %.2f, price: %.2f", seq, side, i+1, symbol, orderQty, price)
+		orderID := b.GetTmpOrder(symbol, side)
 		order, err = b.AmendOrder(orderID, price, orderQty)
-		if order.OrdStatus != "Canceled" {
+		if OS_CANCELED != order.OrdStatus {
 			break
 		}
-		if side == "Buy" {
-			price -= 10
+		if side == SIDE_BUY {
+			price -= PRICE_DIST
 		} else {
-			price += 10
+			price += PRICE_DIST
 		}
 	}
 	return
 }
 func (b *BitMEX) SyncOrders() (order swagger.Order, err error) {
-	tmp_orders, err := b.GetOrdersRaw("XBTUSD", `{"orderStatus":"New"}`)
-	for _, order := range tmp_orders {
-		if order.OrderQty != 200 {
-			if order.Side == "Buy" && order.Symbol == "XBTUSD" {
+	tmp_orders, err := b.GetOrdersRaw("", `{"ordStatus":"New"}`)
+	for i := 0; i < len(tmp_orders); i++ {
+		order = tmp_orders[i]
+		if int(order.OrderQty) != UNIT_AMOUNT {
+			if order.Side == "Buy" && order.Symbol == SYMBOL1 {
 				b.tmpOrders_0 <- order.OrderID
-			} else if order.Side == "Buy" && order.Symbol == "XBTZ19" {
+			} else if order.Side == "Buy" && order.Symbol == SYMBOL2 {
 				b.tmpOrders_1 <- order.OrderID
-			} else if order.Side == "Sell" && order.Symbol == "XBTUSD" {
+			} else if order.Side == "Sell" && order.Symbol == SYMBOL1 {
 				b.tmpOrders_2 <- order.OrderID
 			} else {
 				b.tmpOrders_3 <- order.OrderID
 			}
 		}
 	}
+	fmt.Printf("%d %d %d %d\n", len(b.tmpOrders_0), len(b.tmpOrders_1), len(b.tmpOrders_2), len(b.tmpOrders_3))
 	return
 }
