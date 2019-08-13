@@ -35,9 +35,9 @@ const (
 	OS_CANCELED         = "Canceled"
 	OS_REJECTED         = "Rejected"
 
-	INIT_POSITION int     = 11
-	PRICE_DIST    float64 = 10
-	PROFIT_DIST   float64 = 5
+	INIT_POSITION int     = 47
+	PRICE_DIST    float64 = 30
+	PROFIT_DIST   float64 = 10
 	UNIT_AMOUNT   int     = 200
 	SYMBOL1       string  = "XBTUSD"
 	SYMBOL2       string  = "XBTZ19"
