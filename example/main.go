@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/sumorf/bitmex-api"
+	"github.com/Nynia/bitmex-go"
 	"github.com/sumorf/bitmex-api/swagger"
 	"log"
 	"strings"
