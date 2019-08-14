@@ -18,7 +18,7 @@ const (
 )
 
 func main() {
-	b := bitmex.New(bitmex.HostTestnet, "JbGVj9i92-ChCyLPTPqcAQMW", "MEcZ1CKCouHPKj9MvRjuNyjSYGD16eGbhctntULdzrnG9x9k")
+	b := bitmex.New(bitmex.HostReal, "JbGVj9i92-ChCyLPTPqcAQMW", "MEcZ1CKCouHPKj9MvRjuNyjSYGD16eGbhctntULdzrnG9x9k")
 	subscribeInfos := []bitmex.SubscribeInfo{
 		{Op: bitmex.BitmexWSOrder, Param: SYMBOL1},
 		{Op: bitmex.BitmexWSOrder, Param: SYMBOL2},
