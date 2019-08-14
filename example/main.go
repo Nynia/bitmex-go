@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/Nynia/bitmex-go"
-	"github.com/sumorf/bitmex-api"
+	//"github.com/sumorf/bitmex-api"
 	"github.com/sumorf/bitmex-api/swagger"
 	"log"
 	"strings"
@@ -19,7 +19,7 @@ const (
 )
 
 func main() {
-	b := bitmex.New(bitmex.HostReal, "", "")
+	b := bitmex.New(bitmex.HostReal, "mXMLg-50faY_OWBFtPfTcYDs", "FZyHPVvAv9yP54pHLUxuRh6vsXyYDnlrocfHtebaioahl6q5")
 	subscribeInfos := []bitmex.SubscribeInfo{
 		{Op: bitmex.BitmexWSOrder, Param: SYMBOL1},
 		{Op: bitmex.BitmexWSOrder, Param: SYMBOL2},

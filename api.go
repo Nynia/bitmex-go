@@ -56,6 +56,11 @@ type BitMEX struct {
 	tmpOrders_1 chan string
 	tmpOrders_2 chan string
 	tmpOrders_3 chan string
+
+	orderCnt_0 int
+	orderCnt_1 int
+	orderCnt_2 int
+	orderCnt_3 int
 }
 
 // New allows the use of the public or private and websocket api
@@ -85,6 +90,11 @@ func New(host string, key string, secret string) *BitMEX {
 	b.tmpOrders_1 = make(chan string, 30)
 	b.tmpOrders_2 = make(chan string, 30)
 	b.tmpOrders_3 = make(chan string, 30)
+
+	b.orderCnt_0 = 0
+	b.orderCnt_1 = 0
+	b.orderCnt_2 = 0
+	b.orderCnt_3 = 0
 	return b
 }
 

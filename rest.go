@@ -722,10 +722,24 @@ func (b *BitMEX) GetTmpOrder(symbol string, side string) (orderID string) {
 
 func (b *BitMEX) SendOrder(symbol string, side string, orderQty float32, price float64, seq int) (order swagger.Order, err error) {
 	for i := 0; i < 100; i++ {
-		log.Printf("[%d]%s  第%d次发起委托，symboll: %s, qty: %.2f, price: %.2f", seq, side, i+1, symbol, orderQty, price)
 		orderID := b.GetTmpOrder(symbol, side)
 		order, err = b.AmendOrder(orderID, price, orderQty)
 		if OS_CANCELED != order.OrdStatus {
+			if side == "Buy" && symbol == SYMBOL1 {
+				b.orderCnt_0 += 1
+				b.orderCnt_2 -= 1
+			} else if side == "Buy" && symbol == SYMBOL2 {
+				b.orderCnt_1 += 1
+				b.orderCnt_3 -= 1
+			} else if side == "Sell" && symbol == SYMBOL1 {
+				b.orderCnt_2 += 1
+				b.orderCnt_0 -= 1
+			} else {
+				b.orderCnt_3 += 1
+				b.orderCnt_1 -= 1
+			}
+			log.Printf("[%d]%s  第%d次发起委托，symboll: %s, qty: %.2f, price: %.2f, orderID: %s, result: %s", seq, side, i+1, symbol, orderQty, price, orderID, order.OrdStatus)
+			log.Printf("%d %d %d %d", b.orderCnt_0, b.orderCnt_1, b.orderCnt_2, b.orderCnt_3)
 			break
 		}
 		if side == SIDE_BUY {
@@ -750,8 +764,19 @@ func (b *BitMEX) SyncOrders() (order swagger.Order, err error) {
 			} else {
 				b.tmpOrders_3 <- order.OrderID
 			}
+		} else {
+			if order.Side == "Buy" && order.Symbol == SYMBOL1 {
+				b.orderCnt_0 += 1
+			} else if order.Side == "Buy" && order.Symbol == SYMBOL2 {
+				b.orderCnt_1 += 1
+			} else if order.Side == "Sell" && order.Symbol == SYMBOL1 {
+				b.orderCnt_2 += 1
+			} else {
+				b.orderCnt_3 += 1
+			}
 		}
 	}
-	fmt.Printf("%d %d %d %d\n", len(b.tmpOrders_0), len(b.tmpOrders_1), len(b.tmpOrders_2), len(b.tmpOrders_3))
+	log.Printf("%d %d %d %d\n", len(b.tmpOrders_0), len(b.tmpOrders_1), len(b.tmpOrders_2), len(b.tmpOrders_3))
+	log.Printf("%d %d %d %d\n", b.orderCnt_0, b.orderCnt_1, b.orderCnt_2, b.orderCnt_3)
 	return
 }
