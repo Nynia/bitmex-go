@@ -677,8 +677,8 @@ func (b *BitMEX) NewBuckOrder(ordstr string) (orders []swagger.Order, err error)
 func (b *BitMEX) MonitorTmpOrder() {
 	var side_info = [4]string{"Buy", "Buy", "Sell", "Sell"}
 	var symbol_info = [4]string{SYMBOL1, SYMBOL2, SYMBOL1, SYMBOL2}
-	var qty_info = [4]float32{10, 10, 40, 40}
-	var price_info = [4]float64{3000, 3000, 14000, 14000}
+	var qty_info = [4]float32{10, 30, 40, 60}
+	var price_info = [4]float64{4000, 9200, 12500, 20000}
 	var chan_orders = [4]chan string{b.tmpOrders_0, b.tmpOrders_1, b.tmpOrders_2, b.tmpOrders_3}
 	for {
 		for i := 0; i < 4; i++ {
