@@ -724,6 +724,9 @@ func (b *BitMEX) SendOrder(symbol string, side string, orderQty float32, price f
 	for i := 0; i < 100; i++ {
 		orderID := b.GetTmpOrder(symbol, side)
 		order, err = b.AmendOrder(orderID, price, orderQty)
+		if err != nil {
+			log.Printf("error: %s", err)
+		}
 		if OS_CANCELED != order.OrdStatus {
 			if side == "Buy" && symbol == SYMBOL1 {
 				b.orderCnt_0 += 1
@@ -738,7 +741,7 @@ func (b *BitMEX) SendOrder(symbol string, side string, orderQty float32, price f
 				b.orderCnt_3 += 1
 				b.orderCnt_1 -= 1
 			}
-			log.Printf("[%d]%s  第%d次发起委托，symboll: %s, qty: %.2f, price: %.2f, orderID: %s, result: %s", seq, side, i+1, symbol, orderQty, price, orderID, order.OrdStatus)
+			log.Printf("[%d]%s  第%d次发起委托，symboll: %s, qty: %.2f, price: %.2f, orderID: %s, status: %s", seq, side, i+1, symbol, orderQty, price, orderID, order.OrdStatus)
 			log.Printf("%d %d %d %d", b.orderCnt_0, b.orderCnt_1, b.orderCnt_2, b.orderCnt_3)
 			break
 		}
