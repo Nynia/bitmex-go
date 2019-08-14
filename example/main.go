@@ -3,22 +3,23 @@ package main
 import (
 	"fmt"
 	"github.com/Nynia/bitmex-go"
+	"github.com/sumorf/bitmex-api"
 	"github.com/sumorf/bitmex-api/swagger"
 	"log"
 	"strings"
 )
 
 const (
-	INIT_POSITION int     = 47
-	PRICE_DIST    float64 = 30
-	PROFIT_DIST   float64 = 10
-	UNIT_AMOUNT   int     = 200
+	INIT_POSITION int     = 61
+	PRICE_DIST    float64 = 24
+	PROFIT_DIST   float64 = 12
+	UNIT_AMOUNT   int     = 375
 	SYMBOL1       string  = "XBTUSD"
 	SYMBOL2       string  = "XBTZ19"
 )
 
 func main() {
-	b := bitmex.New(bitmex.HostTestnet, "DEt3D-w0hMPCGwqx3MW0jlU8", "glojC1IZXq94N3MlB8CLM3qeW7cjSUxzqbYRdkz9jJMV0p8q")
+	b := bitmex.New(bitmex.HostTestnet, "JbGVj9i92-ChCyLPTPqcAQMW", "MEcZ1CKCouHPKj9MvRjuNyjSYGD16eGbhctntULdzrnG9x9k")
 	subscribeInfos := []bitmex.SubscribeInfo{
 		{Op: bitmex.BitmexWSOrder, Param: SYMBOL1},
 		{Op: bitmex.BitmexWSOrder, Param: SYMBOL2},
